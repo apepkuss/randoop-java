@@ -1,0 +1,248 @@
+package main.java.randoop.operation;
+
+import java.io.PrintStream;
+import java.lang.reflect.Modifier;
+import java.util.ArrayList;
+import java.util.List;
+
+import main.java.randoop.BugInRandoopException;
+import main.java.randoop.ExceptionalExecution;
+import main.java.randoop.ExecutionOutcome;
+import main.java.randoop.NormalExecution;
+import main.java.randoop.field.AccessibleField;
+import main.java.randoop.field.FieldParser;
+import main.java.randoop.reflection.ReflectionPredicate;
+import main.java.randoop.reflection.TypedOperationManager;
+import main.java.randoop.sequence.Statement;
+import main.java.randoop.sequence.Variable;
+import main.java.randoop.types.ConcreteType;
+import main.java.randoop.types.ConcreteTypeTuple;
+import main.java.randoop.types.ConcreteTypes;
+import main.java.randoop.types.GeneralType;
+import main.java.randoop.types.GeneralTypeTuple;
+import main.java.randoop.types.GenericTypeTuple;
+import main.java.randoop.types.RandoopTypeException;
+
+/**
+ * FieldSetter is an adapter for a {@link AccessibleField} as a
+ * {@link Operation} that acts like a setter for the field.
+ *
+ * @see AccessibleField
+ */
+public class FieldSet extends CallableOperation {
+
+  public static String ID = "setter";
+
+  private AccessibleField field;
+
+  /**
+   * Creates a setter {@link Operation} object for a field of a class. Throws an
+   * exception if the field is static final.
+   *
+   * @param field
+   *          the field object to be set by setter statements.
+   * @throws IllegalArgumentException
+   *           if field is static final.
+   */
+  public FieldSet(AccessibleField field) {
+    if (field.isFinal()) {
+      throw new IllegalArgumentException("Field may not be final for FieldSet");
+    }
+    this.field = field;
+  }
+
+  /**
+   * Sets the value of the field given the inputs. Should the action raise an
+   * exception, those are captured and returned as an {@link ExecutionOutcome}.
+   * Exceptions should only be {@link NullPointerException}, which happens when
+   * input is null but field is an instance field.
+   * {@link AccessibleField#getValue(Object)} suppresses exceptions that occur
+   * because the field is not valid or accessible (specifically
+   * {@link IllegalArgumentException} and {@link IllegalAccessException}).
+   *
+   * @param statementInput
+   *          the inputs for statement.
+   * @param out
+   *          the stream for printing output (unused).
+   * @return outcome of access, either void normal execution or captured
+   *         exception.
+   * @throws BugInRandoopException
+   *           if field access throws bug exception.
+   */
+  @Override
+  public ExecutionOutcome execute(Object[] statementInput, PrintStream out) {
+
+    Object instance = null;
+    Object input = statementInput[0];
+    if (statementInput.length == 2) {
+      instance = statementInput[0];
+      input = statementInput[1];
+    }
+
+    try {
+      field.setValue(instance, input);
+    } catch (BugInRandoopException e) {
+      throw e;
+    } catch (Throwable thrown) {
+      return new ExceptionalExecution(thrown, 0);
+    }
+
+    return new NormalExecution(null, 0);
+  }
+
+  /**
+   * Generates code for setting a field. Should look like
+   *
+   * <pre>
+   * field = value;
+   * </pre>
+   *
+   * or
+   *
+   * <pre>
+   * field = variable;
+   * </pre>
+   *
+   * @param inputVars
+   *          the list of input variables. Last element is value to assign. If
+   *          an instance field, first is instance, second is value.
+   * @param b
+   *          the StringBuilder to which code is issued.
+   */
+  @Override
+  public void appendCode(ConcreteType declaringType, ConcreteTypeTuple inputTypes, ConcreteType outputType, List<Variable> inputVars, StringBuilder b) {
+
+    b.append(field.toCode(declaringType, inputVars));
+    b.append(" = ");
+
+    // variable/value to be assigned is either only or second entry in list
+    int index = inputVars.size() - 1;
+
+    // TODO this is duplicate code from RMethod - should factor out behavior
+    String rhs = inputVars.get(index).getName();
+    Statement statementCreatingVar = inputVars.get(index).getDeclaringStatement();
+
+    String shortForm = statementCreatingVar.getShortForm();
+    if (shortForm != null) {
+      rhs = shortForm;
+    }
+
+    b.append(rhs);
+  }
+
+  /**
+   * Returns the string descriptor for field that can be parsed by
+   *
+   * @return the parseable string descriptor for this setter.
+   */
+  @Override
+  public String toParseableString(ConcreteType declaringType, ConcreteTypeTuple inputTypes, ConcreteType outputType) {
+    return declaringType.getName() + ".<set>(" + field.getName() + ")";
+  }
+
+  /**
+   * Parses a description of a field setter in the given string. A setter
+   * description has the form "&lt;set&gt;( field-descriptor )" where
+   * "&lt;set&gt;" is literally what is expected.
+   *
+   * @param descr
+   *          string containing descriptor of field setter.
+   * @param manager
+   *          the {@link TypedOperationManager} to collect operations
+   * @throws OperationParseException
+   *           if descr does not have expected form.
+   */
+  public static void parse(String descr, TypedOperationManager manager) throws OperationParseException {
+    String errorPrefix = "Error parsing " + descr + " as description for field set statement: ";
+
+    int openParPos = descr.indexOf('(');
+    int closeParPos = descr.indexOf(')');
+
+    if (openParPos < 0) {
+      String msg = errorPrefix + " expecting parentheses.";
+      throw new OperationParseException(msg);
+    }
+    String prefix = descr.substring(0, openParPos);
+    int lastDotPos = prefix.lastIndexOf('.');
+    assert lastDotPos > 0 : "should be a period after the classname: " + descr;
+
+    String classname = prefix.substring(0, lastDotPos);
+    String opname = prefix.substring(lastDotPos + 1);
+    assert opname.equals("<set>") : "expecting <set>, saw " + opname;
+    assert (closeParPos > 0) : "no closing parentheses found.";
+
+    String fieldname = descr.substring(openParPos + 1, closeParPos);
+
+    AccessibleField accessibleField = FieldParser.parse(descr, classname, fieldname);
+    GeneralType classType = accessibleField.getDeclaringType();
+    GeneralType fieldType;
+    try {
+      fieldType = GeneralType.forType(accessibleField.getRawField().getGenericType());
+    } catch (RandoopTypeException e) {
+      String msg = errorPrefix + " type error: " + e;
+      throw new OperationParseException(msg);
+    }
+
+    if (accessibleField.isFinal()) {
+      throw new OperationParseException("Cannot create setter for final field " + classname + "." + opname);
+    }
+    List<GeneralType> setInputTypeList = new ArrayList<>();
+    if (! accessibleField.isStatic()) {
+      setInputTypeList.add(classType);
+    }
+    setInputTypeList.add(fieldType);
+    manager.createTypedOperation(new FieldSet(accessibleField), classType, new GenericTypeTuple(setInputTypeList), ConcreteTypes.VOID_TYPE);
+  }
+
+  @Override
+  public String toString() {
+    return field.toString();
+  }
+
+  @Override
+  public String getName() {
+    return "<set>(" + field.getName() + ")";
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    if (obj instanceof FieldSet) {
+      FieldSet s = (FieldSet) obj;
+      return field.equals(s.field);
+    }
+    return false;
+  }
+
+  @Override
+  public int hashCode() {
+    return field.hashCode();
+  }
+
+  @Override
+  public boolean isStatic() {
+    return field.isStatic();
+  }
+
+  /**
+   * A FieldSetter is a method call because it acts like a setter.
+   */
+  @Override
+  public boolean isMessage() {
+    return true;
+  }
+
+  /**
+   * Determines whether enclosed {@link java.lang.reflect.Field Field} satisfies
+   * the given predicate.
+   *
+   * @param predicate
+   *          the {@link ReflectionPredicate} to be checked.
+   * @return true only if the field used in this setter satisfies
+   *         predicate.canUse.
+   */
+  @Override
+  public boolean satisfies(ReflectionPredicate predicate) {
+    return field.satisfies(predicate);
+  }
+
+}
