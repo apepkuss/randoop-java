@@ -1,6 +1,5 @@
-## Randoop
+## Randoop-Java
 
-Randoop is a unit test generator for Java.
-It automatically creates unit tests for your classes, in JUnit format.
+This repo is used for investigating Randoop.
 
-To learn more, see the [Randoop homepage](https://randoop.github.io/randoop/).
+About Randoop, see the [Randoop homepage](https://randoop.github.io/randoop/).
