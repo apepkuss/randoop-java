@@ -39,8 +39,8 @@ import main.java.randoop.types.GeneralType;
  * Execution of the statement will call
  * {@link CallableOperation#execute(Object[], PrintStream)} with concrete values for each
  * of the inputs.
- * @see randoop.sequence.Statement
- * @see randoop.sequence.ExecutableSequence#execute(randoop.ExecutionVisitor, randoop.test.TestCheckGenerator)
+ * @see main.java.randoop.sequence.Statement
+ * @see main.java.randoop.sequence.ExecutableSequence#execute(randoop.ExecutionVisitor, randoop.test.TestCheckGenerator)
  * <p>
  * To support text-based serialization, an implementing class C should also provide:
  *  <ul>

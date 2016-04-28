@@ -25,30 +25,30 @@ public class ExceptionBehaviorClassifier {
    */
   public static BehaviorType classify(Throwable t, ExecutableSequence s) {
 
-    if (t instanceof RuntimeException || t instanceof Error) {
-      // check for specific unchecked exceptions
+      if (t instanceof RuntimeException || t instanceof Error) {
+          // check for specific unchecked exceptions
 
-      if (t instanceof NullPointerException) {
-        if (s.hasNullInput()) {
-          return GenInputsAbstract.npe_on_null_input;
-        } else { // formerly known as the NPE on non-null input contract
-          return GenInputsAbstract.npe_on_non_null_input;
-        }
+          if (t instanceof NullPointerException) {
+              if (s.hasNullInput()) {
+                  return GenInputsAbstract.npe_on_null_input;
+              } else { // formerly known as the NPE on non-null input contract
+                  return GenInputsAbstract.npe_on_non_null_input;
+              }
+          }
+
+          if (t instanceof OutOfMemoryError) {
+              return GenInputsAbstract.oom_exception;
+          }
+
+          // default failure exceptions
+          if (t instanceof AssertionError || t instanceof StackOverflowError) {
+              return BehaviorType.ERROR;
+          }
+
+          return GenInputsAbstract.unchecked_exception;
+
+      } else {
+            return GenInputsAbstract.checked_exception;
       }
-
-      if (t instanceof OutOfMemoryError) {
-        return GenInputsAbstract.oom_exception;
-      }
-
-      // default failure exceptions
-      if (t instanceof AssertionError || t instanceof StackOverflowError) {
-        return BehaviorType.ERROR;
-      }
-
-      return GenInputsAbstract.unchecked_exception;
-
-    } else {
-      return GenInputsAbstract.checked_exception;
-    }
   }
 }

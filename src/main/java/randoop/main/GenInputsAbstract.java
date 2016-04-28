@@ -391,7 +391,7 @@ public abstract class GenInputsAbstract extends CommandHandler {
    * <p>
    * Literals in these files are used in addition to all other constants in the
    * pool. For the format of this file, see documentation in class
-   * {@link randoop.reflection.LiteralFileReader}. The special value "CLASSES" (with no
+   * {@link main.java.randoop.reflection.LiteralFileReader}. The special value "CLASSES" (with no
    * quotes) means to read literals from all classes under test.
    * </p>
    */
@@ -652,30 +652,30 @@ public abstract class GenInputsAbstract extends CommandHandler {
   }
 
   public static Set<String> getClassnamesFromArgs() {
-    String errMessage = "ERROR while reading list of classes to test";
-    Set<String> classnames = getStringSetFromFile(classlist, errMessage);
-    classnames.addAll(testclass);
-    return classnames;
+      String errMessage = "ERROR while reading list of classes to test";
+      Set<String> classnames = getStringSetFromFile(classlist, errMessage);
+      classnames.addAll(testclass);
+      return classnames;
   }
 
   public static Set<String> getStringSetFromFile(File listFile, String errMessage) {
-    return getStringSetFromFile(listFile, errMessage, "^#.*", null);
+      return getStringSetFromFile(listFile, errMessage, "^#.*", null);
   }
 
   public static Set<String> getStringSetFromFile(
       File listFile, String errMessage, String commentRegex, String includeRegex) {
-    Set<String> elementSet = new LinkedHashSet<>();
-    if (listFile != null) {
-      try (EntryReader er = new EntryReader(listFile, commentRegex, includeRegex)) {
-        for (String line : er) {
-          elementSet.add(line.trim());
-        }
-      } catch (IOException e) {
-        String msg = Util.toNColsStr(errMessage + ": " + e.getMessage(), 70);
-        System.err.println(msg);
-        System.exit(1);
+      Set<String> elementSet = new LinkedHashSet<>();
+      if (listFile != null) {
+          try (EntryReader er = new EntryReader(listFile, commentRegex, includeRegex)) {
+              for (String line : er) {
+                  elementSet.add(line.trim());
+              }
+          } catch (IOException e) {
+              String msg = Util.toNColsStr(errMessage + ": " + e.getMessage(), 70);
+              System.err.println(msg);
+              System.exit(1);
+          }
       }
-    }
-    return elementSet;
+      return elementSet;
   }
 }
